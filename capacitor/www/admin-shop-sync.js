@@ -24,7 +24,14 @@
   };
 
   async function enhanceRegisteredOwnerLogin() {
-    const shopId = window.OraforgeShops.activeShopId();
+    let shopId = window.OraforgeShops.activeShopId();
+    if (!shopId) {
+      const shops = await window.OraforgeShops.list();
+      if (shops && shops.length > 0) {
+        await window.OraforgeShops.activate(shops[0]);
+        shopId = shops[0].id;
+      }
+    }
     if (!shopId) return;
     const shop = await window.OraforgeShops.find(shopId);
     if (!shop) return;

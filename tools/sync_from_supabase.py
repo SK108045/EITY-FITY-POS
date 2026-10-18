@@ -405,7 +405,7 @@ def sync():
 
     catalog_data = {
         "business_type": "hardware",
-        "shop_name": "BuildMart Hardware",
+        "shop_name": "EITY FIT Hardware",
         "categories": [{"id": i + 1, "name": name, "sort_order": i, "business_type": "hardware"} for i, name in enumerate(unique_cats)],
         "items": browser_items,
         "suppliers": browser_suppliers,
