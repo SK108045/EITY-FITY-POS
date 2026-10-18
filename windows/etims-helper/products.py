@@ -36,8 +36,15 @@ def plan(sale, supplied, state, store, config):
         meta.update(item.get('inventory', {}))
         meta.update({k:v for k,v in supplied.get(pos_key, {}).items() if k in ('inventory_before_sale','inventory_confirmed','stock_reason')})
         if previous:
-            candidates = [by_code[previous['code']]] if previous['code'] in by_code else []
-            explicit = previous['code']
+            cand = by_code.get(previous['code'])
+            # Verify that the mapped eTIMS code actually belongs to this exact product name.
+            # If eTIMS was reinstalled or database rebuilt, codes may have shifted; fallback to matching by name.
+            if cand and cand['ITEM_NM'].strip().casefold() == item['name'].strip().casefold():
+                candidates = [cand]
+                explicit = previous['code']
+            else:
+                explicit = None
+                candidates = [i for i in items if i['ITEM_NM'].strip().casefold() == item['name'].strip().casefold()]
         elif meta.get('existing_code'):
             explicit = meta['existing_code']
             candidates = [by_code[explicit]] if explicit in by_code else []
@@ -59,9 +66,8 @@ def plan(sale, supplied, state, store, config):
         if existing:
             if existing['TAX_TY_CD'] not in ('B', 'D'):
                 raise ValueError('Registered product tax differs from supported tax profiles (B or D)')
+            # Authoritative synchronization: adapt POS metadata to match the active eTIMS registered product
             for field, column in FIELD_MAP.items():
-                if meta.get(field) and str(meta[field]) != str(existing[column]):
-                    raise ValueError('Saved POS product registration differs from the active eTIMS product')
                 meta[field] = str(existing[column])
             code = existing['ITEM_CD']
             meta['verified'] = True

@@ -66,10 +66,8 @@ class Store:
             return {**dict(row), 'metadata': json.loads(row['metadata'])} if row else None
     def map(self, key, code, metadata):
         with self.connect() as db:
-            previous = db.execute('SELECT code FROM mappings WHERE id=?', (key,)).fetchone()
-            if previous and previous['code'] != code:
-                raise ValueError('A different eTIMS code is already mapped to this POS product')
-            db.execute('INSERT INTO mappings VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET metadata=excluded.metadata,updated_at=excluded.updated_at',
+            db.execute('''INSERT INTO mappings VALUES(?,?,?,?)
+                          ON CONFLICT(id) DO UPDATE SET code=excluded.code, metadata=excluded.metadata, updated_at=excluded.updated_at''',
                        (key, code, canonical(metadata), now()))
     def interrupted(self):
         with self.connect() as db:
