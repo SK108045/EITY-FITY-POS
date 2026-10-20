@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "outputDirectory": "capacitor/www",
+  "rewrites": [
+    { "source": "/pos", "destination": "/index.html" },
+    { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/admin/", "destination": "/admin.html" }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, X-Oraforge-Etims, X-Oraforge-Shop" }
+      ]
+    }
+  ]
+}

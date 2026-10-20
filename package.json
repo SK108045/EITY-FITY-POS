@@ -1,0 +1,11 @@
+{
+  "name": "oraforge-pos",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "echo 'Build complete'"
+  },
+  "dependencies": {
+    "pg": "^8.23.1"
+  }
+}

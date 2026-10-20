@@ -11,6 +11,8 @@ pos.log
 test_pillow_opt/
 .DS_Store
 
+node_modules/
+
 # Capacitor / Android build artifacts
 capacitor/node_modules/
 capacitor/android/
