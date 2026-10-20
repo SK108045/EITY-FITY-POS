@@ -176,7 +176,7 @@ function handleRequest(req, res) {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Oraforge-Etims, X-Oraforge-Shop'
     });
     return res.end();
   }
@@ -260,6 +260,17 @@ function handleRequest(req, res) {
 
 function startServer(port, attempts = 0) {
   const server = http.createServer(handleRequest);
+
+  server.on('upgrade', (req, socket, head) => {
+    try {
+      const tunnel = require('./etims-tunnel-server');
+      const handled = tunnel.handleUpgrade(req, socket, head);
+      if (!handled) socket.destroy();
+    } catch (e) {
+      console.error('[Tunnel Upgrade Error]', e.message);
+      socket.destroy();
+    }
+  });
 
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE' && !DESKTOP && attempts < 10) {

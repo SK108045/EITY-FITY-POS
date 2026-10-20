@@ -18,11 +18,22 @@
     return value;
   }
   async function request(route, body) {
-    const response=await fetch('/api/etims'+route,{method:body===undefined?'GET':'POST',
-      headers:body===undefined?{}:{'Content-Type':'application/json','X-Oraforge-Etims':'2'},
-      ...(body===undefined?{}:{body:JSON.stringify(body)})});
-    const result=await response.json();
-    if(!response.ok) {const error=Error(result.error || 'Windows eTIMS helper is unavailable.');error.status=response.status;throw error;}
+    const headers = { 'X-Oraforge-Shop': scope() };
+    if (body !== undefined) {
+      headers['Content-Type'] = 'application/json';
+      headers['X-Oraforge-Etims'] = '2';
+    }
+    const response = await fetch('/api/etims' + route, {
+      method: body === undefined ? 'GET' : 'POST',
+      headers,
+      ...(body === undefined ? {} : { body: JSON.stringify(body) })
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      const error = Error(result.error || 'Windows eTIMS helper is unavailable.');
+      error.status = response.status;
+      throw error;
+    }
     return result;
   }
   async function bridge(action,data={}) {

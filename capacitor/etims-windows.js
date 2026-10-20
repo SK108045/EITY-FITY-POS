@@ -113,21 +113,84 @@ function local(req){
   return true;
 }
 async function handle(req,res){
-  const send=(code,value)=>{res.writeHead(code,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(value));};
-  if(!local(req))return send(403,{error:'Use Oraforge on this Windows computer.'});
-  if(req.method==='OPTIONS')return send(403,{error:'Same-origin Windows IPC only.'});
-  const route=new URL(req.url,'http://localhost').pathname.replace(/^\/api\/etims/,'');
-  if(!['/health','/preflight','/jobs'].includes(route) && !/^\/jobs\/[0-9a-f]{64}(\/recover|\/details|\/finish)?$/.test(route))return send(404,{error:'Unknown eTIMS operation'});
+  const send=(code,value)=>{
+    res.writeHead(code,{
+      'Content-Type':'application/json',
+      'Cache-Control':'no-store',
+      'Access-Control-Allow-Origin':'*'
+    });
+    res.end(JSON.stringify(value));
+  };
+
+  if(req.method==='OPTIONS'){
+    res.writeHead(204,{
+      'Access-Control-Allow-Origin':'*',
+      'Access-Control-Allow-Methods':'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers':'Content-Type, Authorization, X-Oraforge-Etims, X-Oraforge-Shop'
+    });
+    return res.end();
+  }
+
+  const parsedUrl = new URL(req.url, 'http://' + (req.headers.host || 'localhost'));
+  const route = parsedUrl.pathname.replace(/^\/api\/etims/, '') || '/';
+
+  // Diagnostic tunnel endpoint
+  if(route === '/status' || route === '/tunnel/status' || route === '/tunnel-status'){
+    const tunnel = require('./etims-tunnel-server');
+    return send(200, {
+      app: 'oraforge-pos',
+      platform: process.platform,
+      tunnel_agents: tunnel.connectedAgentsList(),
+      server_time: new Date().toISOString()
+    });
+  }
+
+  if(!['/health','/preflight','/jobs'].includes(route) && !/^\/jobs\/[0-9a-f]{64}(\/recover|\/details|\/finish)?$/.test(route)){
+    return send(404,{error:'Unknown eTIMS operation'});
+  }
+
   try{
     let body;
     if(req.method==='POST'){
       if(req.headers['content-type']?.split(';')[0]!=='application/json' || req.headers['x-oraforge-etims']!=='2')return send(400,{error:'Structured POS request required'});
-      let size=0,chunks=[];for await(const chunk of req){size+=chunk.length;if(size>1_000_000)return send(413,{error:'Sale request too large'});chunks.push(chunk);}
-      body=JSON.parse(Buffer.concat(chunks).toString('utf8'));
-    }else if(req.method!=='GET')return send(405,{error:'Unsupported method'});
-    await ensure();
-    const result=await call(route,req.method,body);
-    send(req.method==='POST' && route.includes('/jobs')?202:200,result);
-  }catch(error){send(error.status || 503,{error:error.message});}
+      let size=0,chunks=[];for await(const chunk of req){size+=chunk.length;if(size>2_000_000)return send(413,{error:'Sale request too large'});chunks.push(chunk);}
+      try{body=JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{return send(400,{error:'Invalid JSON payload'});}
+    }else if(req.method!=='GET'){
+      return send(405,{error:'Unsupported method'});
+    }
+
+    const tunnel = require('./etims-tunnel-server');
+    const shopId = req.headers['x-oraforge-shop'] || parsedUrl.searchParams.get('shop_id') || 'default';
+    
+    // Direct Windows local desktop mode: only when running directly on Windows desktop, accessed locally, and not in cloud mode
+    const isCloudMode = process.platform !== 'win32' || process.env.POS_CLOUD_MODE === '1' || !local(req);
+    const useDirectLocal = !isCloudMode && !tunnel.isAgentConnected(shopId);
+
+    if(useDirectLocal){
+      await ensure();
+      const result=await call(route,req.method,body);
+      return send(req.method==='POST' && route.includes('/jobs')?202:200,result);
+    }
+
+    // Cloud / Linux / WebSocket tunnel mode
+    if(!tunnel.isAgentConnected(shopId)){
+      return send(503,{
+        error: `Local eTIMS helper is not connected for shop "${shopId}". Please run the Oraforge eTIMS companion on the cashier Windows computer.`,
+        code: 'ETIMS_TUNNEL_NOT_CONNECTED',
+        shop_id: shopId,
+        connected: false
+      });
+    }
+
+    const reply = await tunnel.forwardToAgent(shopId, route, req.method, body);
+    if(reply && reply.error){
+      return send(reply.status || 500, { error: reply.error });
+    }
+    const data = (reply && reply.data !== undefined) ? reply.data : reply;
+    const status = (reply && reply.status) ? reply.status : (req.method==='POST' && route.includes('/jobs') ? 202 : 200);
+    send(status, data);
+  }catch(error){
+    send(error.status || 503,{error:error.message});
+  }
 }
 module.exports={handle,ensure,local,verifyHealth,HELPER_BUILD};

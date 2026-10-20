@@ -1,0 +1,7 @@
+{
+  "cloud_url": "http://localhost:3000",
+  "shop_id": "retail",
+  "secret": "",
+  "helper_port": 17383,
+  "insecure": false
+}
