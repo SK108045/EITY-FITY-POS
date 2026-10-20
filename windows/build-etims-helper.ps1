@@ -14,10 +14,12 @@ New-Item -ItemType Directory -Path $fastStage -Force | Out-Null
 robocopy (Join-Path $helperRoot 'fast_engine') $fastStage /E /XF etims-keys.json *.cs build_generator.cmd | Out-Null
 if($LASTEXITCODE -ge 8){throw 'Could not stage fast_engine'}
 if(-not (Test-Path -LiteralPath (Join-Path $fastStage 'EtimsFastInvoiceGenerator.exe'))){throw 'EtimsFastInvoiceGenerator.exe missing from fast_engine'}
+$venv = Join-Path $repoRoot '.venv-build'
+$pythonExe = if (Test-Path (Join-Path $venv 'Scripts\python.exe')) { Join-Path $venv 'Scripts\python.exe' } else { 'python' }
 $previousPreference=$ErrorActionPreference
 try{
  $ErrorActionPreference='Continue'
- python -m PyInstaller --noconfirm --clean --onedir --noconsole --name OraforgeEtims --distpath $OutputDirectory --workpath $buildRoot --specpath $buildRoot --add-data "$fastStage;fast_engine" --add-data "$helperRoot\tools;tools" --add-data "$helperRoot\profiles;profiles" --add-data "$helperRoot\read-state.ps1;." --add-data "$helperRoot\ui-step.ps1;." --add-data "$helperRoot\powershell-worker.ps1;." --add-data "$helperRoot\Install-Startup.ps1;." --add-data "$helperRoot\product_import;product_import" --additional-hooks-dir "$helperRoot\hooks" --paths $helperRoot --paths "$helperRoot\product_import" "$helperRoot\server.py" 2>&1 | ForEach-Object { $_.ToString() }
+ & $pythonExe -m PyInstaller --noconfirm --clean --onedir --noconsole --name OraforgeEtims --distpath $OutputDirectory --workpath $buildRoot --specpath $buildRoot --add-data "$fastStage;fast_engine" --add-data "$helperRoot\tools;tools" --add-data "$helperRoot\profiles;profiles" --add-data "$helperRoot\read-state.ps1;." --add-data "$helperRoot\ui-step.ps1;." --add-data "$helperRoot\powershell-worker.ps1;." --add-data "$helperRoot\Install-Startup.ps1;." --add-data "$helperRoot\product_import;product_import" --additional-hooks-dir "$helperRoot\hooks" --paths $helperRoot --paths "$helperRoot\product_import" "$helperRoot\server.py" 2>&1 | ForEach-Object { $_.ToString() }
  $buildExit=$LASTEXITCODE
 }finally{$ErrorActionPreference=$previousPreference}
 if($buildExit -ne 0){throw 'eTIMS helper packaging failed'}

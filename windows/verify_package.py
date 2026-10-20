@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ARCHIVE = ROOT / "dist/windows/OraforgePOS-Windows-x64.zip"
 STAGE = ROOT / "dist/windows/OraforgePOS"
 NEEDED = [
-    "OraforgePOS.exe", "Stop POS.cmd", "runtime/node.exe",
+    "OraforgePOS.exe", "pos.sqlite3", "Stop POS.cmd", "runtime/node.exe",
     "app/capacitor/dev-server.js", "app/capacitor/www/sqlite-bridge.js",
     "app/capacitor/www/index.html", "app/capacitor/www/admin.html",
     "app/capacitor/sozuri-config.json", "app/swifta.txt", "build-info.json",

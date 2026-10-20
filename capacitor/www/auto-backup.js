@@ -50,7 +50,12 @@
       show();
     }
   }
-  window.OraforgeAutoBackup = { state, check, show };
+  let scheduleTimer = null;
+  function scheduleCheck(delayMs = 1500) {
+    clearTimeout(scheduleTimer);
+    scheduleTimer = setTimeout(check, delayMs);
+  }
+  window.OraforgeAutoBackup = { state, check, show, scheduleCheck };
   check();
   setInterval(check, 60000);
   window.addEventListener("focus", check);

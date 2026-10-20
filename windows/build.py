@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import time
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -70,7 +71,14 @@ def main():
 
     build_desktop_bridge()
     if STAGE.exists():
-        shutil.rmtree(STAGE)
+        for _ in range(5):
+            try:
+                shutil.rmtree(STAGE)
+                break
+            except Exception:
+                time.sleep(0.5)
+        else:
+            shutil.rmtree(STAGE, ignore_errors=True)
     (STAGE / "runtime").mkdir(parents=True)
     with zipfile.ZipFile(node_zip) as z:
         if z.testzip() is not None:
@@ -88,6 +96,14 @@ def main():
         shutil.copy2(CAP / name, app / name)
     (STAGE / "app/swifta.txt").write_text("", encoding="utf-8")
     (app / "sozuri-config.json").write_text(json.dumps(EMPTY_SOZURI, indent=2) + "\n", encoding="utf-8")
+
+    # Include default shop SQLite database in the build folder
+    src_db = ROOT / "data/pos.sqlite3"
+    if src_db.exists():
+        (STAGE / "data").mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src_db, STAGE / "data/pos.sqlite3")
+        shutil.copy2(src_db, STAGE / "pos.sqlite3")
+        print(f"Bundled {src_db.name} ({src_db.stat().st_size:,} bytes) into build package", flush=True)
 
     fingerprint = hashlib.sha256((VERSION + (ROOT / "windows/launcher_windows.go").read_text()).encode())
     for file in sorted((STAGE / "app").rglob("*")):

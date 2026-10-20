@@ -208,6 +208,7 @@ func run() error {
 	if err = seedFile(filepath.Join(app, "sozuri-config.json"), filepath.Join(dataDir, "sozuri-config.json")); err != nil {
 		return err
 	}
+	_ = seedFile(filepath.Join(folder, "pos.sqlite3"), filepath.Join(dataDir, "pos.sqlite3"))
 	h, healthErr := serverHealth()
 	if healthErr == nil && h.App == "oraforge-pos" && h.Instance == cfg.Instance {
 		if h.Build != buildID {
@@ -231,7 +232,7 @@ func run() error {
 		defer logFile.Close()
 		cmd := exec.Command(node, filepath.Join(app, "dev-server.js"))
 		cmd.Dir = app
-		cmd.Env = append(os.Environ(), "POS_DESKTOP=1", "PORT=3000", "POS_PORT=3000", "POS_INSTANCE="+cfg.Instance, "POS_BUILD="+buildID, "POS_DATA_DIR="+dataDir, "POS_BACKUP_DIR="+filepath.Join(dataDir, "backups"), "SWIFTA_ATTEMPTS_PATH="+filepath.Join(dataDir, "swifta-attempts.json"))
+		cmd.Env = append(os.Environ(), "POS_DESKTOP=1", "PORT=3000", "POS_PORT=3000", "POS_INSTANCE="+cfg.Instance, "POS_BUILD="+buildID, "POS_DATA_DIR="+dataDir, "POS_BACKUP_DIR="+filepath.Join(dataDir, "backups"), "SWIFTA_ATTEMPTS_PATH="+filepath.Join(dataDir, "swifta-attempts.json"), "POS_ROOT_DIR="+folder)
 		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
 		cmd.Stdout, cmd.Stderr = logFile, logFile
 		if err = cmd.Start(); err != nil {

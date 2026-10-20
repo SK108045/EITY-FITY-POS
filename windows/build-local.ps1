@@ -26,13 +26,17 @@ if (-not (Test-Path (Join-Path $venv 'Scripts\python.exe'))) { Step 'Create clea
 $env:VIRTUAL_ENV = $venv
 $env:PATH = (Join-Path $venv 'Scripts') + ';' + $env:PATH
 
-Step 'Install JavaScript packages' { npm ci --prefix capacitor }
+Get-Process OraforgePOS, OraforgeEtims, node -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*dist\windows\OraforgePOS*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+
+if (-not (Test-Path (Join-Path $root 'capacitor\node_modules'))) {
+  Step 'Install JavaScript packages' { npm ci --prefix capacitor }
+}
 Step 'Build app, Node runtime and launcher' { python windows\build.py }
 Step 'Install Python build packages' { python -m pip install --disable-pip-version-check pyinstaller==6.16.0 -r windows\etims-helper\requirements.txt }
 Step 'Build eTIMS helper EXE' { powershell -NoProfile -ExecutionPolicy Bypass -File windows\build-etims-helper.ps1 }
 
 $stage = Join-Path $root 'dist\windows\OraforgePOS'
-$must = @('OraforgePOS.exe', 'runtime\node.exe', 'app\capacitor\etims-windows.js',
+$must = @('OraforgePOS.exe', 'pos.sqlite3', 'data\pos.sqlite3', 'runtime\node.exe', 'app\capacitor\etims-windows.js',
           'runtime\etims\OraforgeEtims\OraforgeEtims.exe')
 foreach ($file in $must) {
   if (-not (Test-Path -LiteralPath (Join-Path $stage $file))) { throw "Missing in package: $file" }
@@ -43,6 +47,8 @@ if (Get-ChildItem $stage -Recurse -Filter etims-keys.json) { throw 'Developer ke
 $zip = Join-Path $root 'dist\windows\OraforgePOS-Windows-x64.zip'
 Write-Host "`n==> Create portable ZIP" -ForegroundColor Cyan
 Compress-Archive -Path $stage -DestinationPath $zip -CompressionLevel Optimal -Force
+$sha = (Get-FileHash -Path $zip -Algorithm SHA256).Hash.ToLower()
+Set-Content -Path ($zip + '.sha256') -Value "$sha  $(Split-Path $zip -Leaf)`n" -NoNewline
 Write-Host "ZIP: $zip" -ForegroundColor Green
 
 if (-not $SkipInstaller) {

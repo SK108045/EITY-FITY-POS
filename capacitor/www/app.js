@@ -459,7 +459,11 @@ const LocalPOS = {
     return this.get(this.shopKey(name, btype), fallback);
   },
   async setShop(name, value, btype = null) {
-    return this.set(this.shopKey(name, btype), value);
+    const res = await this.set(this.shopKey(name, btype), value);
+    if (['orders', 'items', 'suppliers', 'categories', 'settings'].includes(name)) {
+      window.OraforgeAutoBackup?.scheduleCheck?.();
+    }
+    return res;
   },
   async seedShop(btype, force = false) {
     const prof = LOCAL_PROFILES_DATA.profiles[btype] || LOCAL_PROFILES_DATA.profiles.retail;
