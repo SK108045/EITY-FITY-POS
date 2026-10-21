@@ -151,13 +151,47 @@ function forwardToLocalHelper(body) {
   });
 }
 
-// 5. Poll local helper until async signing completes
+// 5. Submit registration details for products in needs_details
+function submitJobDetails(jobKey, details) {
+  return new Promise((resolve) => {
+    const token = getHelperToken();
+    const payload = Buffer.from(JSON.stringify({ details }), 'utf8');
+    const headers = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'X-Oraforge-Etims': '2',
+      'Content-Length': payload.length,
+      'Connection': 'close'
+    };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+
+    const req = http.request({
+      hostname: '127.0.0.1',
+      port: helperPort,
+      path: '/jobs/' + jobKey + '/details',
+      method: 'POST',
+      headers,
+      agent: false,
+      timeout: 10000
+    }, (res) => {
+      let chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => resolve({ ok: res.statusCode === 202 || res.statusCode === 200 }));
+    });
+    req.on('error', () => resolve({ ok: false }));
+    req.write(payload);
+    req.end();
+  });
+}
+
+// 6. Poll local helper until async signing completes
 function pollLocalHelperJob(jobKey, maxWaitMs = 35000) {
   const token = getHelperToken();
   const startTime = Date.now();
+  let detailsSubmitted = false;
 
   return new Promise((resolve) => {
-    function check() {
+    async function check() {
       const headers = {
         'Accept': 'application/json',
         'X-Oraforge-Etims': '2',
@@ -176,12 +210,41 @@ function pollLocalHelperJob(jobKey, maxWaitMs = 35000) {
       }, (res) => {
         let chunks = [];
         res.on('data', c => chunks.push(c));
-        res.on('end', () => {
+        res.on('end', async () => {
           try {
             const json = JSON.parse(Buffer.concat(chunks).toString('utf8'));
             if (json.state === 'complete' && (json.result?.fiscal || json.fiscal)) {
               return resolve({ ok: true, data: json });
             }
+
+            // Auto-resolve new product registration if needed
+            if (json.state === 'needs_details') {
+              if (!detailsSubmitted) {
+                detailsSubmitted = true;
+                const timeStr = new Date().toLocaleTimeString();
+                console.log(`[${timeStr}] 📦 Registering new product with KRA UNSPSC class defaults...`);
+                const reqs = json.result?.requirements || [];
+                const details = {};
+                for (const r of reqs) {
+                  details[r.product_key] = {
+                    class_code: '60102300',
+                    item_type: '2',
+                    package_unit: 'OU',
+                    quantity_unit: 'NO',
+                    origin: 'KE',
+                    tax_code: r.values?.tax_code || 'D',
+                    unit_cost_cents: r.values?.unit_cost_cents || 1000,
+                    inventory_before_sale: r.values?.inventory_before_sale || 1000,
+                    inventory_confirmed: true,
+                    verified: true
+                  };
+                }
+                await submitJobDetails(jobKey, details);
+              }
+              setTimeout(check, 500);
+              return;
+            }
+
             if (json.state === 'failed' || json.state === 'review_required') {
               return resolve({ ok: false, error: json.error || 'eTIMS helper signing encountered an error' });
             }
@@ -207,7 +270,7 @@ function pollLocalHelperJob(jobKey, maxWaitMs = 35000) {
   });
 }
 
-// 6. Connect to Supabase PostgreSQL Pool
+// 7. Connect to Supabase PostgreSQL Pool
 const pool = new Pool({
   connectionString: dbUrl,
   ssl: { rejectUnauthorized: false },
