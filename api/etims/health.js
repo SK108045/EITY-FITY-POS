@@ -16,10 +16,14 @@ module.exports = async function handler(req, res) {
   const shopId = req.headers['x-oraforge-shop'] || req.query?.shop_id || 'retail';
 
   try {
+    // Check if any cashier eTIMS companion is online within the last 90 seconds,
+    // prioritizing the exact matching shop if multiple exist.
     const { rows } = await pool.query(
-      `SELECT last_seen, helper_status, (NOW() - last_seen) < INTERVAL '60 seconds' AS is_online 
+      `SELECT shop_id, last_seen, helper_status, (NOW() - last_seen) < INTERVAL '90 seconds' AS is_online 
        FROM pos.etims_workers 
-       WHERE shop_id = $1`,
+       WHERE (NOW() - last_seen) < INTERVAL '90 seconds'
+       ORDER BY (shop_id = $1) DESC, last_seen DESC 
+       LIMIT 1`,
       [shopId]
     );
 
@@ -30,13 +34,13 @@ module.exports = async function handler(req, res) {
         build: '20261017.1',
         status: 'ready',
         mode: 'supabase_queue',
-        shop_id: shopId,
+        shop_id: rows[0].shop_id || shopId,
         last_seen: rows[0].last_seen
       });
     }
 
     return res.status(503).json({
-      error: `Cashier eTIMS companion is not active on the store Windows PC for shop "${shopId}". Please open Start-Cloud-Agent.cmd on the cashier computer.`,
+      error: `Cashier eTIMS companion is not active on the store Windows PC. Please open Start-Cloud-Agent.cmd on the cashier computer.`,
       status: 'offline',
       shop_id: shopId
     });

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Oraforge eTIMS Supabase Companion Worker (100% Free Serverless Architecture)
+ * Oraforge eTIMS Supabase Companion Worker ($0 Free Serverless Architecture)
  * Directly watches pos.etims_queue in Supabase and signs with local KRA eTIMS.
  * Eliminates the need for any cloud Linux or AWS servers!
  */
@@ -42,7 +42,7 @@ const helperPort = parseInt(process.env.ORAFORGE_ETIMS_PORT || fileConfig.helper
 
 console.log(`[Configuration]`);
 console.log(`  Supabase DB:  Connected (Schema: pos)`);
-console.log(`  Shop ID:      ${shopId}`);
+console.log(`  Store Mode:   Universal Multi-Shop (retail, hardware, etc.)`);
 console.log(`  Local Helper: http://127.0.0.1:${helperPort}`);
 console.log(`  Config File:  ${configPath}\n`);
 
@@ -79,7 +79,7 @@ function checkLocalHelper() {
       method: 'GET',
       headers: { 'Connection': 'close' },
       agent: false,
-      timeout: 1500
+      timeout: 2000
     }, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
@@ -122,7 +122,7 @@ function forwardToLocalHelper(body) {
       method: 'POST',
       headers,
       agent: false,
-      timeout: 45000
+      timeout: 30000
     }, (res) => {
       let chunks = [];
       res.on('data', c => chunks.push(c));
@@ -143,7 +143,7 @@ function forwardToLocalHelper(body) {
 
     req.on('timeout', () => {
       req.destroy();
-      resolve({ status: 504, error: 'Local eTIMS helper timed out after 45s' });
+      resolve({ status: 504, error: 'Local eTIMS helper timed out' });
     });
 
     req.write(payload);
@@ -151,7 +151,63 @@ function forwardToLocalHelper(body) {
   });
 }
 
-// 5. Connect to Supabase PostgreSQL Pool
+// 5. Poll local helper until async signing completes
+function pollLocalHelperJob(jobKey, maxWaitMs = 35000) {
+  const token = getHelperToken();
+  const startTime = Date.now();
+
+  return new Promise((resolve) => {
+    function check() {
+      const headers = {
+        'Accept': 'application/json',
+        'X-Oraforge-Etims': '2',
+        'Connection': 'close'
+      };
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+
+      const req = http.request({
+        hostname: '127.0.0.1',
+        port: helperPort,
+        path: '/jobs/' + jobKey,
+        method: 'GET',
+        headers,
+        agent: false,
+        timeout: 4000
+      }, (res) => {
+        let chunks = [];
+        res.on('data', c => chunks.push(c));
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+            if (json.state === 'complete' && (json.result?.fiscal || json.fiscal)) {
+              return resolve({ ok: true, data: json });
+            }
+            if (json.state === 'failed' || json.state === 'review_required') {
+              return resolve({ ok: false, error: json.error || 'eTIMS helper signing encountered an error' });
+            }
+            if (Date.now() - startTime > maxWaitMs) {
+              return resolve({ ok: false, error: 'Timed out waiting for eTIMS signature from local helper' });
+            }
+            setTimeout(check, 350);
+          } catch (e) {
+            if (Date.now() - startTime > maxWaitMs) return resolve({ ok: false, error: e.message });
+            setTimeout(check, 500);
+          }
+        });
+      });
+
+      req.on('error', (err) => {
+        if (Date.now() - startTime > maxWaitMs) return resolve({ ok: false, error: err.message });
+        setTimeout(check, 1000);
+      });
+
+      req.end();
+    }
+    check();
+  });
+}
+
+// 6. Connect to Supabase PostgreSQL Pool
 const pool = new Pool({
   connectionString: dbUrl,
   ssl: { rejectUnauthorized: false },
@@ -164,7 +220,6 @@ let isRunning = true;
 let totalProcessed = 0;
 
 async function runWorker() {
-  // Initial check
   const helperStatus = await checkLocalHelper();
   if (helperStatus.ok) {
     console.log(`[Local Helper] ✓ ONLINE on port ${helperPort} (build: ${helperStatus.info?.build || 'active'})`);
@@ -184,48 +239,73 @@ async function runWorker() {
     try {
       const now = Date.now();
 
-      // Send heartbeat every 10 seconds
+      // Send heartbeat every 10 seconds for active shops
       if (now - lastHeartbeat > 10000) {
         lastHeartbeat = now;
         const currentHelper = await checkLocalHelper();
-        await pool.query(
-          `INSERT INTO pos.etims_workers (shop_id, last_seen, helper_status)
-           VALUES ($1, NOW(), $2)
-           ON CONFLICT (shop_id) DO UPDATE SET last_seen = NOW(), helper_status = $2`,
-          [shopId, JSON.stringify(currentHelper)]
-        );
+        const helperPayload = JSON.stringify(currentHelper);
+
+        // Register heartbeat for current shop, and all common shop types
+        const shopsToBeat = Array.from(new Set([shopId, 'retail', 'hardware', 'all']));
+        for (const sid of shopsToBeat) {
+          await pool.query(
+            `INSERT INTO pos.etims_workers (shop_id, last_seen, helper_status)
+             VALUES ($1, NOW(), $2)
+             ON CONFLICT (shop_id) DO UPDATE SET last_seen = NOW(), helper_status = $2`,
+            [sid, helperPayload]
+          );
+        }
       }
 
-      // Claim a pending invoice job
+      // Claim a pending invoice job (claim any store pending job)
       const claimRes = await pool.query(
         `UPDATE pos.etims_queue
          SET status = 'processing', updated_at = NOW()
          WHERE id = (
            SELECT id FROM pos.etims_queue
-           WHERE status = 'pending' AND (shop_id = $1 OR $1 = 'all')
+           WHERE status = 'pending'
            ORDER BY id ASC
            FOR UPDATE SKIP LOCKED
            LIMIT 1
          )
-         RETURNING id, job_hash, payload, order_id, ticket_no, shop_id`,
-        [shopId]
+         RETURNING id, job_hash, payload, order_id, ticket_no, shop_id`
       );
 
       if (claimRes.rows.length === 0) {
-        // No pending jobs, wait 500ms
-        await new Promise(r => setTimeout(r, 500));
+        // No pending jobs, wait 400ms
+        await new Promise(r => setTimeout(r, 400));
         continue;
       }
 
       const job = claimRes.rows[0];
       const timeStr = new Date().toLocaleTimeString();
-      console.log(`[${timeStr}] 📩 Picked up Invoice Job for Ticket #${job.ticket_no} (ID: ${job.id})`);
+      console.log(`[${timeStr}] 📩 Picked up Invoice Job #${job.id} (Ticket: ${job.ticket_no || 'N/A'}, Shop: ${job.shop_id})`);
 
       // Dispatch to local eTIMS helper
-      const res = await forwardToLocalHelper(job.payload);
+      const submitRes = await forwardToLocalHelper(job.payload);
 
-      if (res.status >= 200 && res.status < 300 && res.data?.fiscal) {
-        const fiscal = res.data.fiscal;
+      let finalResult = null;
+      let finalError = null;
+
+      if (submitRes.status >= 200 && submitRes.status < 300) {
+        if (submitRes.data?.fiscal || submitRes.data?.result?.fiscal) {
+          finalResult = submitRes.data.result || submitRes.data;
+        } else {
+          // Asynchronous job queued in local helper; poll until complete
+          const jobKey = submitRes.data?.id || job.job_hash;
+          const pollRes = await pollLocalHelperJob(jobKey);
+          if (pollRes.ok) {
+            finalResult = pollRes.data.result || pollRes.data;
+          } else {
+            finalError = pollRes.error;
+          }
+        }
+      } else {
+        finalError = submitRes.error || submitRes.data?.error || `Helper returned HTTP ${submitRes.status}`;
+      }
+
+      if (finalResult && (finalResult.fiscal || finalResult.result?.fiscal)) {
+        const fiscal = finalResult.fiscal || finalResult.result?.fiscal;
         totalProcessed++;
 
         // Mark completed in etims_queue
@@ -233,7 +313,7 @@ async function runWorker() {
           `UPDATE pos.etims_queue
            SET status = 'completed', result = $2, updated_at = NOW()
            WHERE id = $1`,
-          [job.id, JSON.stringify(res.data)]
+          [job.id, JSON.stringify(finalResult)]
         );
 
         // Update orders table with fiscal data
@@ -249,7 +329,7 @@ async function runWorker() {
           [
             job.order_id,
             fiscal.cu_invoice_number || null,
-            fiscal.qr_code || null,
+            fiscal.qr_image || fiscal.qr_code || null,
             fiscal.scu_id || null,
             fiscal.receipt_signature || null,
             job.ticket_no
@@ -258,7 +338,7 @@ async function runWorker() {
 
         console.log(`[${timeStr}] ✅ Invoice Signed! CU Number: ${fiscal.cu_invoice_number} (Total Processed: ${totalProcessed})`);
       } else {
-        const errMsg = res.error || res.data?.error || `Helper returned HTTP ${res.status}`;
+        const errMsg = finalError || 'eTIMS signature was not produced';
         console.warn(`[${timeStr}] ⚠️  Signing failed for Job #${job.id}: ${errMsg}`);
 
         await pool.query(

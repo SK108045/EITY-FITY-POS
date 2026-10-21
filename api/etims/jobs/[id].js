@@ -20,7 +20,7 @@ module.exports = async function handler(req, res) {
 
   try {
     const { rows } = await pool.query(
-      `SELECT status, result, error FROM pos.etims_queue 
+      `SELECT job_hash, status, result, error FROM pos.etims_queue 
        WHERE job_hash = $1 OR id::text = $1
        ORDER BY id DESC LIMIT 1`,
       [String(id)]
@@ -33,6 +33,7 @@ module.exports = async function handler(req, res) {
     const job = rows[0];
     if (job.status === 'completed') {
       return res.status(200).json({
+        id: job.job_hash,
         state: 'complete',
         result: job.result
       });
@@ -40,12 +41,14 @@ module.exports = async function handler(req, res) {
 
     if (job.status === 'failed') {
       return res.status(500).json({
+        id: job.job_hash,
         state: 'failed',
         error: job.error || 'Invoice signing failed'
       });
     }
 
     return res.status(200).json({
+      id: job.job_hash,
       state: 'queued',
       status: job.status
     });
