@@ -198,15 +198,28 @@ async function run() {
       console.log(`  ✓ ${inserted} unique products saved to Supabase.`);
 
       // If deduplication is enabled, remove redundant duplicate rows in Supabase
-      if (duplicateIdsToRemove.length > 0) {
-        for (let i = 0; i < duplicateIdsToRemove.length; i += 500) {
-          const chunk = duplicateIdsToRemove.slice(i, i + 500);
-          await client.query(`
-            DELETE FROM pos.menu_items 
-            WHERE shop_id = $1 AND id = ANY($2::bigint[])
-          `, [shopId, chunk]);
-        }
-        console.log(`  ✓ Purged ${duplicateIdsToRemove.length} duplicate products from Supabase.`);
+      if (doDedup) {
+        await client.query(`
+          WITH ranked AS (
+            SELECT id,
+                   ROW_NUMBER() OVER (PARTITION BY lower(trim(name)) ORDER BY id ASC) as rn,
+                   FIRST_VALUE(id) OVER (PARTITION BY lower(trim(name)) ORDER BY id ASC) as canonical_id
+            FROM pos.menu_items
+            WHERE shop_id = $1
+          ),
+          duplicates AS (
+            SELECT id, canonical_id FROM ranked WHERE rn > 1
+          ),
+          remap_orders AS (
+            UPDATE pos.order_items oi
+            SET menu_item_id = d.canonical_id
+            FROM duplicates d
+            WHERE oi.menu_item_id = d.id
+          )
+          DELETE FROM pos.menu_items
+          WHERE id IN (SELECT id FROM duplicates);
+        `, [shopId]);
+        console.log(`  ✓ Purged all duplicate products from Supabase.`);
       }
     }
 

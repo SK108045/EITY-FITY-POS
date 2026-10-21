@@ -1,6 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
-title Oraforge POS - SQLite to Supabase Cloud Data Transfer
+title Oraforge POS - SQLite to Supabase Cloud Migration Tool
 
 cd /d "%~dp0"
 
@@ -23,25 +23,20 @@ if not defined NODE_EXE (
 )
 
 :: 2. Locate sqlite file (Drag-and-drop or auto-detect)
-set "SQLITE_FILE=%~1"
+set "SQLITE_FILE=%~f1"
+
+if not defined SQLITE_FILE if exist "pos.sqlite3" set "SQLITE_FILE=%~dp0pos.sqlite3"
+if not defined SQLITE_FILE if exist "data\pos.sqlite3" set "SQLITE_FILE=%~dp0data\pos.sqlite3"
+if not defined SQLITE_FILE if exist "dist\windows\OraforgePOS\pos.sqlite3" set "SQLITE_FILE=%~dp0dist\windows\OraforgePOS\pos.sqlite3"
+if not defined SQLITE_FILE if exist "dist\windows\OraforgePOS\data\pos.sqlite3" set "SQLITE_FILE=%~dp0dist\windows\OraforgePOS\data\pos.sqlite3"
+if not defined SQLITE_FILE if exist "C:\Users\Admin\Downloads\POS_APK-Linux_Deployment\POS_APK-Linux_Deployment\dist\windows\OraforgePOS\pos.sqlite3" (
+    set "SQLITE_FILE=C:\Users\Admin\Downloads\POS_APK-Linux_Deployment\POS_APK-Linux_Deployment\dist\windows\OraforgePOS\pos.sqlite3"
+)
 
 if not defined SQLITE_FILE (
-    if exist "pos.sqlite3" set "SQLITE_FILE=pos.sqlite3"
-)
-if not defined SQLITE_FILE (
-    if exist "C:\Users\Admin\Downloads\POS_APK-Linux_Deployment\POS_APK-Linux_Deployment\dist\windows\OraforgePOS\pos.sqlite3" (
-        set "SQLITE_FILE=C:\Users\Admin\Downloads\POS_APK-Linux_Deployment\POS_APK-Linux_Deployment\dist\windows\OraforgePOS\pos.sqlite3"
-    )
-)
-if not defined SQLITE_FILE (
-    if exist "%~dp0dist\windows\OraforgePOS\pos.sqlite3" (
-        set "SQLITE_FILE=%~dp0dist\windows\OraforgePOS\pos.sqlite3"
-    )
-)
-if not defined SQLITE_FILE (
-    echo [PROMPT] Enter the full path to pos.sqlite3 (or drag and drop it here):
-    set /p "SQLITE_FILE=Path: "
-    set "SQLITE_FILE=!SQLITE_FILE:"=!"
+    echo [PROMPT] Drag and drop pos.sqlite3 onto this window and press ENTER:
+    set /p "USER_INPUT=Path: "
+    for /f "tokens=*" %%F in ("!USER_INPUT!") do set "SQLITE_FILE=%%~fF"
 )
 
 if not exist "!SQLITE_FILE!" (
