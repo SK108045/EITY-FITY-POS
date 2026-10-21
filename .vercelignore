@@ -1,0 +1,16 @@
+# Ignore legacy python files from Vercel detection
+legacy-python/
+app.py
+profiles.py
+requirements.txt
+
+# Ignore Windows-only helpers from Vercel
+windows/
+dist/
+chrome-extension/
+tools/
+c__/
+.venv-build/
+*.cmd
+*.bat
+*.ps1

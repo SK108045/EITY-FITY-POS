@@ -2,6 +2,7 @@
   "version": 2,
   "outputDirectory": "capacitor/www",
   "rewrites": [
+    { "source": "/", "destination": "/index.html" },
     { "source": "/pos", "destination": "/index.html" },
     { "source": "/admin", "destination": "/admin.html" },
     { "source": "/admin/", "destination": "/admin.html" }
