@@ -17,7 +17,8 @@ Here is the complete, straightforward breakdown for transferring to a new machin
 
 Only two things:
 1. **The Official KRA eTIMS Client**:
-   - In Kenya, any machine that signs official tax invoices must have the official KRA eTIMS software installed with your registered PIN (`A018733640V`) at `C:\eTIMS-Paypoint-Win` (or official KRA OSCU / VSCU).
+   - In Kenya, any machine that signs official tax invoices must have the official KRA eTIMS software installed with the business's registered KRA PIN at `C:\eTIMS-Paypoint-Win` (or official KRA OSCU / VSCU).
+   - The companion **automatically auto-detects** the taxpayer PIN, branch code, and signing keys directly from the local eTIMS client on that PC (zero manual configuration required).
 2. **A Web Browser (Chrome or Edge)**:
    - To open the POS at **`https://eity-fity-pos.vercel.app/pos`**.
 
