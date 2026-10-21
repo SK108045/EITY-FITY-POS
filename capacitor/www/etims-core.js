@@ -104,7 +104,22 @@
   function receipt(record) {
     if (!record) return '';
     const f = record.fiscal;
-    if (!f?.cu_invoice_number) return `<section class="receipt-etims"><p>eTIMS: ${escape(record.helper_state ? record.helper_state.replaceAll('_',' ') : record.status === 'pending' ? 'Pending' : 'Check existing KRA invoice')}</p>${record.helper_error?`<p>${escape(record.helper_error)}</p>`:''}</section>`;
+    if (!f?.cu_invoice_number) {
+      const stateMsg = record.helper_state ? record.helper_state.replaceAll('_',' ') : record.status === 'pending' ? 'Queued for signing' : 'Processing invoice';
+      return `<section class="receipt-etims">
+        <div class="etims-progress-container">
+          <div class="etims-progress-status">
+            <span class="etims-spinner"></span>
+            <span>Signing with KRA eTIMS…</span>
+          </div>
+          <div class="etims-progress-bar">
+            <div class="etims-progress-bar-fill"></div>
+          </div>
+          <small style="color:var(--muted,#64748b);font-size:11px;text-transform:capitalize;">${escape(stateMsg)}</small>
+        </div>
+        ${record.helper_error ? `<p style="color:var(--danger,#ef4444);font-size:12px;margin-top:6px;">${escape(record.helper_error)}</p>` : ''}
+      </section>`;
+    }
     const rows = [['CU Invoice Number',f.cu_invoice_number],['SCU ID',f.scu_id],['Receipt Signature',f.receipt_signature],['Invoice Number',f.invoice_number],['Invoice Date',f.invoice_date]];
     return `<section class="receipt-etims"><p><strong>KRA eTIMS</strong>${f.source === 'manual' ? ' · Manually recorded' : ''}</p>${rows.filter(([,v])=>v).map(([k,v])=>`<div class="receipt-line"><span>${k}</span><span>${escape(v)}</span></div>`).join('')}${f.source==='windows'?`<p>Issued by eTIMS Windows Client${f.kra_acceptance_status==='accepted'?' · KRA upload accepted':''}</p>`:''}${f.qr_image ? `<img class="receipt-kra-qr" alt="Official KRA QR code" src="${escape(qr(f.qr_image))}">` : '<p>Official QR not captured. Refer to the KRA invoice.</p>'}</section>`;
   }

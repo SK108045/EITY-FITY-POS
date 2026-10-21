@@ -20,3 +20,54 @@
 /* KRA invoice processing: no premature final POS thermal receipt. */
 .receipt #receiptPrintBtn:disabled{opacity:.56!important;cursor:wait!important;filter:grayscale(.4)}
 .receipt #receiptPrintBtn:disabled:hover{transform:none!important}
+
+/* eTIMS Live Progress Animation */
+.etims-progress-container {
+  margin: 12px 0 8px;
+  padding: 12px;
+  background: var(--card, #f8fafc);
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 8px;
+  text-align: center;
+}
+.etims-progress-bar {
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 8px 0;
+  position: relative;
+}
+.etims-progress-bar-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #10b981, #059669, #34d399, #10b981);
+  background-size: 200% 100%;
+  animation: etimsShimmer 1.5s infinite linear;
+  border-radius: 3px;
+}
+@keyframes etimsShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.etims-progress-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary, #0f766e);
+}
+.etims-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #cbd5e1;
+  border-top-color: #0f766e;
+  border-radius: 50%;
+  animation: etimsSpin 0.8s linear infinite;
+  display: inline-block;
+}
+@keyframes etimsSpin {
+  to { transform: rotate(360deg); }
+}

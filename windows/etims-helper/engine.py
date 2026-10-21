@@ -184,6 +184,8 @@ class Engine:
                 overlay.update(95, "Recording fiscal signature...")
                 self.store.update(key,'complete',result=self.result(raw,sale))
                 overlay.update(100, "Invoice issued successfully")
+                import time
+                time.sleep(1.0)
                 if len(state.get('process_ids', [])) == 1:
                     try:
                         Client(state['process_ids'][0]).activate_pos()
@@ -214,6 +216,8 @@ class Engine:
             overlay.update(95, "Recording fiscal signature...")
             self.store.update(key,'complete',result=self.result(raw,sale))
             overlay.update(100, "Invoice issued successfully")
+            import time
+            time.sleep(1.0)
             try:
                 with span('cleanup'):client.finish_invoice(raw['local_invoice_id'])
             except Exception:
