@@ -56,7 +56,9 @@ function getHelperToken() {
   const candidateTokenPaths = [
     path.join(getEtimsHome(), 'helper.token'),
     path.resolve(process.cwd(), 'helper.token'),
-    path.resolve(__dirname, 'helper.token')
+    path.resolve(__dirname, 'helper.token'),
+    path.resolve(__dirname, 'config', 'helper.token'),
+    path.resolve(process.cwd(), 'config', 'helper.token')
   ];
   for (const p of candidateTokenPaths) {
     try {
