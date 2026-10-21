@@ -118,6 +118,9 @@ class Engine:
     def safe_error(error):
         if isinstance(error,(ValueError,RuntimeError)):
             return str(error)[:600]
+        msg = str(error).strip()
+        if msg:
+            return f"{type(error).__name__}: {msg}"[:600]
         return type(error).__name__+': Windows operation stopped. Review the same sale before retrying.'
     def result(self,raw,sale):
         image=Path(raw['qr_code']['image'])

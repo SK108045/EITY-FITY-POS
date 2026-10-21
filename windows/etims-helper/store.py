@@ -12,8 +12,12 @@ def now():
 class Store:
     def __init__(self, path):
         self.path = Path(path)
+        self.init_schema()
+
+    def init_schema(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self.connect() as db:
+        with sqlite3.connect(self.path, timeout=30) as db:
+            db.execute('PRAGMA journal_mode=WAL')
             db.executescript('''CREATE TABLE IF NOT EXISTS jobs (
                 id TEXT PRIMARY KEY, digest TEXT NOT NULL, payload TEXT NOT NULL,
                 state TEXT NOT NULL, details TEXT NOT NULL, result TEXT,
@@ -24,14 +28,27 @@ class Store:
                 CREATE TABLE IF NOT EXISTS events (
                 id INTEGER PRIMARY KEY, job TEXT NOT NULL, stage TEXT NOT NULL,
                 at TEXT NOT NULL);''')
+
     @contextmanager
     def connect(self):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        if not self.path.exists() or self.path.stat().st_size == 0:
+            self.init_schema()
         db = sqlite3.connect(self.path, timeout=30)
         db.row_factory = sqlite3.Row
         try:
             db.execute('PRAGMA journal_mode=WAL')
-            with db:yield db
-        finally:db.close()
+            with db:
+                yield db
+        except sqlite3.OperationalError as oe:
+            if 'no such table' in str(oe).lower():
+                self.init_schema()
+                with db:
+                    yield db
+            else:
+                raise
+        finally:
+            db.close()
     @staticmethod
     def decode(row):
         if not row:
