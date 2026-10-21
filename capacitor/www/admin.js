@@ -493,7 +493,6 @@ function showAdminSalesReceipt(order, isKot = false) {
         </table>
         <div class="receipt-totals">
           ${discountCents ? `<div class="receipt-line"><span>Subtotal</span><span>${moneyRaw(subtotalCents)}</span></div><div class="receipt-line"><span>Discount</span><span>-${moneyRaw(discountCents)}</span></div>` : ''}
-          ${order.tax_treatment ? `<div class="receipt-line"><span>Tax treatment</span><span>${order.tax_treatment==='vat'?'VAT ('+Number(taxRate.toFixed(1))+'%)':'Non-VAT'}</span></div>` : ''}
           <div class="receipt-line"><span>Total Excl. VAT</span><span>${moneyRaw(exclVat)}</span></div>
           <div class="receipt-line"><span>VAT Total (${Number(taxRate.toFixed(1))}%)</span><span>${moneyRaw(vatAmount)}</span></div>
           <div class="receipt-total"><span>Total</span><strong>KES ${moneyRaw(grossCents)}</strong></div>
