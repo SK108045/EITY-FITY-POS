@@ -3,6 +3,25 @@ const moneyRaw = cents => (cents / 100).toFixed(2);
 const qs = (sel, root = document) => root.querySelector(sel);
 const qsa = (sel, root = document) => [...root.querySelectorAll(sel)];
 
+function parseOrderDate(order) {
+  if (!order) return new Date();
+  const raw = order.paid_at || order.updated_at || order.created_at || order.date || order.created_iso || order.updated_iso;
+  if (!raw) return new Date();
+  if (typeof raw === 'number') {
+    return new Date(raw > 1e11 ? raw : raw * 1000);
+  }
+  if (typeof raw === 'string') {
+    const num = Number(raw);
+    if (!isNaN(num) && isFinite(num) && num > 0) {
+      return new Date(num > 1e11 ? num : num * 1000);
+    }
+    const d = new Date(raw);
+    if (!isNaN(d.getTime())) return d;
+  }
+  return new Date();
+}
+window.parseOrderDate = parseOrderDate;
+
 // ── Receipt Modal ─────────────────────────────────────────────────────────────
 const receiptEscape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
 function showReceiptModal(order, isKot = false, autoPrintEtims = false) {
@@ -70,8 +89,7 @@ function showReceiptModal(order, isKot = false, autoPrintEtims = false) {
         : (exclVat > 0 ? vatAmount / exclVat * 100 : 0)) : 0;
     const discountCents = Math.max(0, Number(order.discount_cents || 0));
     const subtotalCents = Number(order.subtotal_cents ?? (grossCents + discountCents));
-    const saleStamp = Number(order.created_at || order.paid_at || 0);
-    const created = saleStamp > 0 ? new Date(saleStamp * 1000) : new Date();
+    const created = parseOrderDate(order);
     const printedAt = new Date().toLocaleTimeString('en-KE', {hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true});
     const custName = order.etims_customer?.name || order.customer_name || 'Walk-In Customer';
     const custPin = (order.etims_customer?.pin || order.customer_kra_pin || '').trim();
@@ -819,11 +837,46 @@ const LocalPOS = {
       await this.setShop('items', products, btype);
       await this.setShop('customers', customers, btype);
       window.OraforgeAutoBackup?.check();
+      if (typeof fetch === 'function') {
+        const activeShop = window.OraforgeShops?.activeShopId() || btype || 'retail';
+        fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Oraforge-Shop': activeShop },
+          body: JSON.stringify({ ...order, shop_id: activeShop })
+        }).catch(e => console.warn('Cloud sync deferred:', e));
+      }
       return order;
     }
 
     if (cleanPath === '/api/orders' && method === 'GET') {
-      let orders = await this.getShop('orders', [], btype);
+      let orders = [];
+      const shopScope = window.OraforgeShops?.activeShopId() || btype || 'retail';
+
+      // 1. Try fetching live orders from Supabase cloud API first
+      if (typeof fetch === 'function') {
+        try {
+          const cloudUrl = '/api/orders?status=' + encodeURIComponent(url.searchParams.get('status') || '') +
+            '&shop_id=' + encodeURIComponent(shopScope) + '&limit=300';
+          const res = await fetch(cloudUrl, {
+            headers: { 'X-Oraforge-Shop': shopScope },
+            cache: 'no-store'
+          });
+          if (res.ok) {
+            const cloudOrders = await res.json();
+            if (Array.isArray(cloudOrders) && cloudOrders.length > 0) {
+              orders = cloudOrders;
+              await this.setShop('orders', orders, btype);
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 2. If cloud didn't return orders, read from local IndexedDB
+      if (!orders || orders.length === 0) {
+        orders = await this.getShop('orders', [], btype);
+      }
+
+      // 3. Fallback to catalog if local is still completely empty
       if (!orders || orders.length === 0) {
         try {
           const res = await fetch('/buildmart_catalog.json');
@@ -836,14 +889,26 @@ const LocalPOS = {
           }
         } catch (_) {}
       }
+
       const status = url.searchParams.get('status');
-      const rows = status ? orders.filter(o => o.status === status) : orders;
+      let rows = status ? orders.filter(o => o.status === status) : orders;
+      rows = [...rows].sort((a, b) => parseOrderDate(b).getTime() - parseOrderDate(a).getTime());
       return window.OraforgeEtims ? window.OraforgeEtims.attach(rows) : rows;
     }
 
     if (cleanPath === '/api/order' && method === 'GET') {
+      const orderId = Number(url.searchParams.get('id'));
+      let order = null;
       const orders = await this.getShop('orders', [], btype);
-      const order=orders.find(o => o.id === Number(url.searchParams.get('id')));
+      if (Array.isArray(orders)) order = orders.find(o => o.id === orderId);
+
+      if (!order && typeof fetch === 'function') {
+        try {
+          const res = await fetch(`/api/order?id=${orderId}`, { cache: 'no-store' });
+          if (res.ok) order = await res.json();
+        } catch (_) {}
+      }
+
       return order && window.OraforgeEtims ? (await window.OraforgeEtims.attach([order]))[0] : order || {};
     }
 
@@ -2596,11 +2661,12 @@ async function renderSales() {
   const root = qs('[data-page="sales"]');
   const orders = await api('/api/orders?status=paid');
   
-  const formatDate = (ts) => {
-    if (!ts) return '-';
-    const d = new Date(ts * 1000);
+  const formatDate = (val, order) => {
+    const d = parseOrderDate(order || { updated_at: val });
     return d.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   };
+
+  const sortedOrders = [...(orders || [])].sort((a, b) => parseOrderDate(b).getTime() - parseOrderDate(a).getTime());
 
   root.innerHTML = `
     <div class="panel-title-group" style="margin: 0 24px 20px; padding-top: 24px;">
@@ -2621,10 +2687,10 @@ async function renderSales() {
           </tr>
         </thead>
         <tbody>
-          ${orders.map(o => `
+          ${sortedOrders.map(o => `
             <tr class="sales-row" data-id="${o.id}">
               <td class="font-mono"><strong>${o.ticket_no}</strong></td>
-              <td class="text-muted">${formatDate(o.updated_at)}</td>
+              <td class="text-muted">${formatDate(o.updated_at, o)}</td>
               <td>${o.employee_name || '-'}</td>
               <td>
                 <span class="pay-badge ${o.payment_method === 'mpesa' ? 'mpesa' : 'cash'}">

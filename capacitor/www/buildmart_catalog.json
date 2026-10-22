@@ -23986,6 +23986,174 @@
   ],
   "orders": [
     {
+      "id": 883,
+      "ticket_no": "R668611-800",
+      "order_type": "walk-in",
+      "customer_name": "Walk-In",
+      "customer_kra_pin": "NA",
+      "status": "paid",
+      "subtotal_cents": 15000,
+      "tax_cents": 0,
+      "total_cents": 15000,
+      "paid_cents": 15000,
+      "payment_method": "cash",
+      "payment_ref": "CASH",
+      "employee_name": "POS Terminal",
+      "created_at": 1792668631,
+      "updated_at": 1792668634,
+      "paid_at": 1792668631,
+      "cu_invoice_number": "KRACU0100044063/811",
+      "items": [
+        {
+          "id": 3113,
+          "menu_item_id": 506,
+          "name": "Screw Driver Combined",
+          "qty": 1,
+          "unit_price_cents": 15000,
+          "line_total_cents": 15000,
+          "tax_code": "D"
+        }
+      ]
+    },
+    {
+      "id": 882,
+      "ticket_no": "R668203-796",
+      "order_type": "walk-in",
+      "customer_name": "Walk-In",
+      "customer_kra_pin": "NA",
+      "status": "paid",
+      "subtotal_cents": 60000,
+      "tax_cents": 0,
+      "total_cents": 60000,
+      "paid_cents": 60000,
+      "payment_method": "cash",
+      "payment_ref": "CASH",
+      "employee_name": "POS Terminal",
+      "created_at": 1792668230,
+      "updated_at": 1792668249,
+      "paid_at": 1792668230,
+      "cu_invoice_number": "KRACU0100044063/810",
+      "items": [
+        {
+          "id": 3112,
+          "menu_item_id": 403,
+          "name": "Dp Switch 45A Power max",
+          "qty": 1,
+          "unit_price_cents": 60000,
+          "line_total_cents": 60000,
+          "tax_code": "D"
+        }
+      ]
+    },
+    {
+      "id": 881,
+      "ticket_no": "R667302-794",
+      "order_type": "walk-in",
+      "customer_name": "AGAKHAN HOSPITAL",
+      "customer_kra_pin": "P000590593S",
+      "status": "paid",
+      "subtotal_cents": 60000,
+      "tax_cents": 0,
+      "total_cents": 60000,
+      "paid_cents": 60000,
+      "payment_method": "cash",
+      "payment_ref": "CASH",
+      "employee_name": "POS Terminal",
+      "created_at": 1792667533,
+      "updated_at": 1792667536,
+      "paid_at": 1792667533,
+      "cu_invoice_number": "KRACU0100044063/809",
+      "items": [
+        {
+          "id": 3109,
+          "menu_item_id": 1595,
+          "name": "ppr reduced Tee 50mm x 25mm",
+          "qty": 1,
+          "unit_price_cents": 15000,
+          "line_total_cents": 15000,
+          "tax_code": "D"
+        },
+        {
+          "id": 3110,
+          "menu_item_id": 223,
+          "name": "Ppr plain socket 50mm",
+          "qty": 2,
+          "unit_price_cents": 10000,
+          "line_total_cents": 20000,
+          "tax_code": "D"
+        },
+        {
+          "id": 3111,
+          "menu_item_id": 684,
+          "name": "Ppr Burner 32mm",
+          "qty": 1,
+          "unit_price_cents": 25000,
+          "line_total_cents": 25000,
+          "tax_code": "D"
+        }
+      ]
+    },
+    {
+      "id": 880,
+      "ticket_no": "R666782-793",
+      "order_type": "walk-in",
+      "customer_name": "DHARMESH MEHTA",
+      "customer_kra_pin": "A004529948M",
+      "status": "paid",
+      "subtotal_cents": 50000,
+      "tax_cents": 0,
+      "total_cents": 50000,
+      "paid_cents": 50000,
+      "payment_method": "cash",
+      "payment_ref": "CASH",
+      "employee_name": "POS Terminal",
+      "created_at": 1792666798,
+      "updated_at": 1792666802,
+      "paid_at": 1792666798,
+      "cu_invoice_number": "KRACU0100044063/808",
+      "items": [
+        {
+          "id": 3108,
+          "menu_item_id": 67,
+          "name": "Led tube 4ft",
+          "qty": 2,
+          "unit_price_cents": 25000,
+          "line_total_cents": 50000,
+          "tax_code": "D"
+        }
+      ]
+    },
+    {
+      "id": 879,
+      "ticket_no": "R666731-791",
+      "order_type": "walk-in",
+      "customer_name": "Walk-In",
+      "customer_kra_pin": "NA",
+      "status": "paid",
+      "subtotal_cents": 50000,
+      "tax_cents": 0,
+      "total_cents": 50000,
+      "paid_cents": 50000,
+      "payment_method": "cash",
+      "payment_ref": "CASH",
+      "employee_name": "POS Terminal",
+      "created_at": 1792666744,
+      "updated_at": 1792666771,
+      "paid_at": 1792666744,
+      "cu_invoice_number": "KRACU0100044063/807",
+      "items": [
+        {
+          "id": 3107,
+          "menu_item_id": 67,
+          "name": "Led tube 4ft",
+          "qty": 2,
+          "unit_price_cents": 25000,
+          "line_total_cents": 50000,
+          "tax_code": "D"
+        }
+      ]
+    },
+    {
       "id": 878,
       "ticket_no": "R1792252942787",
       "order_type": "walk-in",

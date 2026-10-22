@@ -3,6 +3,25 @@ const $$ = s => [...document.querySelectorAll(s)];
 const money = c => `KES ${(c/100).toLocaleString('en-KE', {minimumFractionDigits:2})}`;
 const fmt = n => Number(n).toLocaleString('en-KE');
 
+function parseOrderDate(order) {
+  if (!order) return new Date();
+  const raw = order.paid_at || order.updated_at || order.created_at || order.date || order.created_iso || order.updated_iso;
+  if (!raw) return new Date();
+  if (typeof raw === 'number') {
+    return new Date(raw > 1e11 ? raw : raw * 1000);
+  }
+  if (typeof raw === 'string') {
+    const num = Number(raw);
+    if (!isNaN(num) && isFinite(num) && num > 0) {
+      return new Date(num > 1e11 ? num : num * 1000);
+    }
+    const d = new Date(raw);
+    if (!isNaN(d.getTime())) return d;
+  }
+  return new Date();
+}
+window.parseOrderDate = parseOrderDate;
+
 function garageUnitOptions(currentUnit = 'pcs') {
   const units = [...new Set(['pcs', 'btl', 'set', 'litre', 'service', currentUnit])];
   const escape = value => String(value).replace(/[&<>"]/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;'}[c]));
@@ -87,14 +106,44 @@ const LocalAdmin = {
     // Same shop-scoped orders collection used by the POS Sales History page.
     // This is intentionally read-only: viewing receipts never changes sales data.
     if (cleanPath === '/api/orders' && method === 'GET') {
+      let orderList = orders;
+      const shopScope = window.OraforgeShops?.activeShopId() || this.type() || 'retail';
+
+      if (typeof fetch === 'function') {
+        try {
+          const cloudUrl = '/api/orders?status=' + encodeURIComponent(url.searchParams.get('status') || '') +
+            '&shop_id=' + encodeURIComponent(shopScope) + '&limit=300';
+          const res = await fetch(cloudUrl, {
+            headers: { 'X-Oraforge-Shop': shopScope },
+            cache: 'no-store'
+          });
+          if (res.ok) {
+            const cloudOrders = await res.json();
+            if (Array.isArray(cloudOrders) && cloudOrders.length > 0) {
+              orderList = cloudOrders;
+              await this.set('orders', orderList);
+            }
+          }
+        } catch (_) {}
+      }
+
       const status = url.searchParams.get('status');
-      const rows=status ? orders.filter(order => order.status === status) : orders;
+      let rows = status ? orderList.filter(order => order.status === status) : orderList;
+      rows = [...rows].sort((a, b) => parseOrderDate(b).getTime() - parseOrderDate(a).getTime());
       return window.OraforgeEtims ? window.OraforgeEtims.attach(rows) : rows;
     }
     if (cleanPath === '/api/order' && method === 'GET') {
       const orderId = Number(url.searchParams.get('id'));
       if (!Number.isSafeInteger(orderId) || orderId <= 0) throw new Error('Invalid receipt number.');
-      const order = orders.find(row => Number(row.id) === orderId);
+      let order = orders.find(row => Number(row.id) === orderId);
+
+      if (!order && typeof fetch === 'function') {
+        try {
+          const res = await fetch(`/api/order?id=${orderId}`, { cache: 'no-store' });
+          if (res.ok) order = await res.json();
+        } catch (_) {}
+      }
+
       if (!order) throw new Error('Receipt could not be found in this shop.');
       return window.OraforgeEtims ? (await window.OraforgeEtims.attach([order]))[0] : order;
     }
@@ -289,10 +338,9 @@ const moneyRaw = cents => (Number(cents || 0) / 100).toFixed(2);
 let adminSalesSearch = '';
 let adminSalesRows = [];
 
-function adminSalesTime(ts) {
-  const n = Number(ts);
-  if (!Number.isFinite(n) || n <= 0) return '—';
-  return new Date(n * 1000).toLocaleString('en-GB', {day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+function adminSalesTime(ts, order) {
+  const d = parseOrderDate(order || { updated_at: ts });
+  return d.toLocaleString('en-GB', {day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
 }
 
 function adminSalesDrawRows() {
@@ -305,7 +353,7 @@ function adminSalesDrawRows() {
   body.innerHTML = visible.map(o => `
     <tr class="admin-sales-row">
       <td class="admin-sales-ref">${receiptEscape(o.ticket_no || o.id || '—')}</td>
-      <td>${receiptEscape(adminSalesTime(o.paid_at || o.updated_at || o.created_at))}</td>
+      <td>${receiptEscape(adminSalesTime(o.paid_at || o.updated_at || o.created_at, o))}</td>
       <td>${receiptEscape(o.employee_name || 'POS Terminal')}</td>
       <td>
         <span class="admin-sales-payment ${String(o.payment_method || '').toLowerCase() === 'mpesa' ? 'mpesa' : 'cash'}">${receiptEscape(String(o.payment_method||'cash').toLowerCase()==='mpesa'?'M-Pesa':String(o.payment_method||'cash').toLowerCase()==='cash'?'Cash':String(o.payment_method).toUpperCase())}</span>
@@ -324,7 +372,7 @@ async function renderAdminSales() {
     const orders = await api('/api/orders?status=paid');
     if (!Array.isArray(orders)) throw new Error('Unable to read the shop sales history.');
     adminSalesRows = orders.filter(o=>o.status==='paid').sort((a,b)=>
-      Number(b.paid_at||b.updated_at||b.created_at||0) - Number(a.paid_at||a.updated_at||a.created_at||0));
+      parseOrderDate(b).getTime() - parseOrderDate(a).getTime());
     const total = adminSalesRows.reduce((sum,o)=>sum+Number(o.total_cents||0),0);
     root.innerHTML = `
       <header class="page-header admin-sales-header">
@@ -449,8 +497,7 @@ function showAdminSalesReceipt(order, isKot = false) {
         : (exclVat > 0 ? vatAmount / exclVat * 100 : 0)) : 0;
     const discountCents = Math.max(0, Number(order.discount_cents || 0));
     const subtotalCents = Number(order.subtotal_cents ?? (grossCents + discountCents));
-    const saleStamp = Number(order.created_at || order.paid_at || 0);
-    const created = saleStamp > 0 ? new Date(saleStamp * 1000) : new Date();
+    const created = parseOrderDate(order);
     const printedAt = new Date().toLocaleTimeString('en-KE', {hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true});
     const custName = order.etims_customer?.name || order.customer_name || 'Walk-In Customer';
     const custPin = (order.etims_customer?.pin || order.customer_kra_pin || '').trim();
