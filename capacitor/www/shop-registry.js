@@ -133,9 +133,20 @@
       rows.unshift(defaultShop);
       await setGlobal(REGISTRY_KEY, rows);
     } else {
-      const items = await getGlobal('shop:' + defaultShop.id + ':items', []);
+      let items = await getGlobal('shop:' + defaultShop.id + ':items', []);
       if (!Array.isArray(items) || items.length === 0) {
         await initializeShopStorage(defaultShop);
+      } else {
+        const seen = new Set();
+        const cleanItems = items.filter(it => {
+          const key = `${String(it.sku || '').trim()}::${String(it.name || '').trim().toLowerCase()}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        if (cleanItems.length !== items.length) {
+          await setGlobal('shop:' + defaultShop.id + ':items', cleanItems);
+        }
       }
     }
     return rows;

@@ -438,9 +438,14 @@ function sanitizeProfileItems(items, profileId) {
       else foreignPrefixes.push(prefixes);
     }
   }
+  const seen = new Set();
   return items.filter(item => {
     const sku = String(item.sku || '').toUpperCase();
-    return !foreignPrefixes.some(fp => sku.startsWith(fp));
+    if (foreignPrefixes.some(fp => sku.startsWith(fp))) return false;
+    const key = `${String(item.sku || '').trim()}::${String(item.name || '').trim().toLowerCase()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
 }
 
