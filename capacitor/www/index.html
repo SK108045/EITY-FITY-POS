@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Oraforge POS</title>
   <link rel="stylesheet" href="inter.css?v=20260919-4">
-  <link rel="stylesheet" href="styles.css?v=20261013-checkout-ui1">
+  <link rel="stylesheet" href="styles.css?v=20261023-mobile-drawer1">
   <link rel="stylesheet" href="form-controls.css?v=20261013-checkout-ui1">
   <link rel="stylesheet" href="shop-registration.css?v=20261008-green-maintenance">
   <script>
@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="etims-integration.css?v=20261011-kra-final-receipt">
 </head>
 <body>
+  <div class="mobile-nav-backdrop" id="mobileNavBackdrop"></div>
   <header class="topbar">
     <div class="topbar-left">
       <button class="mobile-nav-toggle" id="mobileNavToggle" aria-label="Toggle navigation">
@@ -31,16 +32,39 @@
       </a>
       <div class="topbar-divider"></div>
     </div>
-    <div class="topbar-center">
+    <div class="topbar-center" id="mobileNavDrawer">
+      <div class="mobile-drawer-header">
+        <div class="drawer-brand">
+          <div class="drawer-brand-badge">of.</div>
+          <div class="drawer-brand-text">
+            <span class="drawer-title" id="drawerStoreTitle">Oraforge POS</span>
+            <small class="drawer-tagline" id="drawerStoreTag">Store POS</small>
+          </div>
+        </div>
+        <button class="drawer-close-btn" id="mobileDrawerClose" aria-label="Close navigation">✕</button>
+      </div>
       <nav id="topNav">
-        <a class="nav-link active" href="/pos"><span class="nav-icon">🖥️</span>POS</a>
-        <a class="nav-link" href="/suppliers"><span class="nav-icon">🚚</span>Suppliers</a>
-        <a class="nav-link" href="/sales"><span class="nav-icon">🧾</span>Sales</a>
-        <a class="nav-link" href="/products"><span class="nav-icon">📦</span>Products</a>
-        <a class="nav-link" href="/reports"><span class="nav-icon">📊</span>Reports</a>
-        <a class="nav-link" href="/settings"><span class="nav-icon">⚙️</span>Settings</a>
-        <a class="nav-link" href="admin.html" id="navAdminLink"><span class="nav-icon">👑</span>Admin</a>
+        <a class="nav-link active" href="/pos"><span class="nav-icon">🖥️</span><span class="nav-text">POS</span></a>
+        <a class="nav-link" href="/suppliers"><span class="nav-icon">🚚</span><span class="nav-text">Suppliers</span></a>
+        <a class="nav-link" href="/sales"><span class="nav-icon">🧾</span><span class="nav-text">Sales</span></a>
+        <a class="nav-link" href="/products"><span class="nav-icon">📦</span><span class="nav-text">Products</span></a>
+        <a class="nav-link" href="/reports"><span class="nav-icon">📊</span><span class="nav-text">Reports</span></a>
+        <a class="nav-link" href="/settings"><span class="nav-icon">⚙️</span><span class="nav-text">Settings</span></a>
+        <a class="nav-link" href="admin.html" id="navAdminLink"><span class="nav-icon">👑</span><span class="nav-text">Admin</span></a>
       </nav>
+      <div class="mobile-drawer-footer">
+        <div class="drawer-user-card">
+          <div class="drawer-user-avatar">🟢</div>
+          <div class="drawer-user-meta">
+            <div class="drawer-user-name" id="drawerUserName">Terminal Active</div>
+            <div class="drawer-user-role">Cashier Station</div>
+          </div>
+        </div>
+        <div class="drawer-footer-actions">
+          <button class="drawer-action-btn" id="drawerThemeBtn" title="Toggle Light / Dark theme" aria-label="Toggle theme">☀️</button>
+          <button class="drawer-action-btn drawer-logout-btn" id="drawerLogoutBtn" title="Logout" aria-label="Logout">⏏</button>
+        </div>
+      </div>
     </div>
     <div class="topbar-right">
       <span class="status-dot" title="System online"></span>
@@ -62,7 +86,7 @@
   <script src="etims-integration.js?v=20261013-checkout-ui1" defer></script>
   <script src="shop-registry.js?v=20261018-eityfit1" defer></script>
   <script src="shop-operations.js" defer></script>
-  <script src="app.js?v=20261013-checkout-ui1" defer></script>
+  <script src="app.js?v=20261023-mobile-drawer1" defer></script>
   <script src="shop-profile-sync.js?v=20260919-4" defer></script>
   <script src="shop-registration.js?v=20261008-maintenance2" defer></script>
   <script src="login-maintenance.js?v=20261008-direct-swifta-txt" defer></script>
@@ -84,13 +108,53 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       const toggle = document.getElementById('mobileNavToggle');
-      const center = document.querySelector('.topbar-center');
-      if(toggle && center) {
-        toggle.addEventListener('click', (e) => { e.stopPropagation(); center.classList.toggle('open'); });
-        document.addEventListener('click', (e) => {
-          if (!center.contains(e.target) && !toggle.contains(e.target)) center.classList.remove('open');
+      const drawer = document.getElementById('mobileNavDrawer') || document.querySelector('.topbar-center');
+      const backdrop = document.getElementById('mobileNavBackdrop');
+      const closeBtn = document.getElementById('mobileDrawerClose');
+
+      function openDrawer() {
+        if (drawer) drawer.classList.add('open');
+        if (backdrop) backdrop.classList.add('open');
+        if (toggle) toggle.classList.add('open');
+        document.body.classList.add('drawer-locked');
+      }
+
+      function closeDrawer() {
+        if (drawer) drawer.classList.remove('open');
+        if (backdrop) backdrop.classList.remove('open');
+        if (toggle) toggle.classList.remove('open');
+        document.body.classList.remove('drawer-locked');
+      }
+
+      function toggleDrawer(e) {
+        if (e) e.stopPropagation();
+        if (drawer && drawer.classList.contains('open')) {
+          closeDrawer();
+        } else {
+          openDrawer();
+        }
+      }
+
+      if (toggle) toggle.addEventListener('click', toggleDrawer);
+      if (backdrop) backdrop.addEventListener('click', closeDrawer);
+      if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+
+      if (drawer) {
+        drawer.addEventListener('click', (e) => {
+          if (e.target.closest('a.nav-link')) {
+            closeDrawer();
+          }
         });
       }
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && drawer && drawer.classList.contains('open')) {
+          closeDrawer();
+        }
+      });
+
+      window.closeMobileNav = closeDrawer;
+      window.openMobileNav = openDrawer;
     });
   </script>
 </body>

@@ -276,22 +276,44 @@ function updateHeaderAndNav() {
   const bTag = qs('#brandTagline') || qs('.brand-text small');
   if (bTag && state.settings && state.settings.business_tagline) bTag.textContent = state.settings.business_tagline;
 
+  // Sync mobile drawer brand and user details
+  const dTitle = qs('#drawerStoreTitle');
+  if (dTitle && state.settings && state.settings.business_name) dTitle.textContent = state.settings.business_name;
+  const dTag = qs('#drawerStoreTag');
+  if (dTag && state.settings && state.settings.business_tagline) dTag.textContent = state.settings.business_tagline;
+  const dUser = qs('#drawerUserName');
+  if (dUser) {
+    const shopName = (state.profile && state.profile.name) ? state.profile.name : 'Terminal Active';
+    dUser.textContent = shopName;
+  }
+  const dLogout = qs('#drawerLogoutBtn');
+  if (dLogout) {
+    dLogout.onclick = (e) => {
+      e.preventDefault();
+      if (typeof window.closeMobileNav === 'function') window.closeMobileNav();
+      const posLogout = qs('#posLogoutBtn');
+      if (posLogout) posLogout.click();
+    };
+  }
+  const dTheme = qs('#drawerThemeBtn');
+  if (dTheme) {
+    const currentTheme = document.documentElement.getAttribute('data-theme') || localStorage.getItem('pos_theme') || 'light';
+    dTheme.textContent = currentTheme === 'dark' ? '☀️' : '🌙';
+    dTheme.onclick = (e) => {
+      e.preventDefault();
+      const themeToggle = qs('#themeToggleBtn');
+      if (themeToggle) themeToggle.click();
+      const updatedTheme = document.documentElement.getAttribute('data-theme') || 'light';
+      dTheme.textContent = updatedTheme === 'dark' ? '☀️' : '🌙';
+    };
+  }
+
   // Remove quick profile switcher from inside the portal (store selection only on login)
   qs('#quickProfileWrap')?.remove();
 
-  // Ensure Admin Portal link is in top nav
-  const nav = qs('#topNav');
-  if (nav && !qs('#navAdminLink')) {
-    const adminLink = document.createElement('a');
-    adminLink.id = 'navAdminLink';
-    adminLink.className = 'nav-link';
-    adminLink.href = 'admin.html';
-    adminLink.innerHTML = '<span class="nav-icon">👑</span>Admin';
-    nav.appendChild(adminLink);
-  }
-
   // Hook up Logout button to return to login screen
   const logoutBtn = qs('.logout');
+  if (logoutBtn) {
     logoutBtn.onclick = (e) => {
       e.preventDefault();
       localStorage.removeItem('pos_logged_in');
@@ -303,6 +325,7 @@ function updateHeaderAndNav() {
       bootstrapped = false;
       showLoginScreen();
     };
+  }
 
   // Setup theme toggle button in header
   const themeToggle = qs('#themeToggleBtn');
@@ -317,6 +340,7 @@ function updateHeaderAndNav() {
       localStorage.setItem('pos_theme', next);
       themeToggle.textContent = next === 'dark' ? '☀️' : '🌙';
       themeToggle.title = next === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme';
+      if (dTheme) dTheme.textContent = next === 'dark' ? '☀️' : '🌙';
       // Re-render settings if settings page is currently active
       if (qs('#themeCardLight') || qs('#themeCardDark')) {
         renderSettings();
@@ -337,9 +361,10 @@ function updateHeaderAndNav() {
     navItems.push({ icon: '📦', label: productLabel, href: '/products' });
     navItems.push({ icon: '📊', label: 'Reports', href: '/reports' });
     navItems.push({ icon: '⚙️', label: 'Settings', href: '/settings' });
+    navItems.push({ icon: '👑', label: 'Admin', href: 'admin.html', id: 'navAdminLink' });
 
     navRoot.innerHTML = navItems.map(item =>
-      `<a class="nav-link" href="${item.href}"><span class="nav-icon">${item.icon}</span>${item.label}</a>`
+      `<a class="nav-link" href="${item.href}"${item.id ? ` id="${item.id}"` : ''}><span class="nav-icon">${item.icon}</span><span class="nav-text">${item.label}</span></a>`
     ).join('');
     syncActiveTopNav();
   }
@@ -3909,6 +3934,9 @@ async function renderPage(pageDef) {
 }
 
 async function navigateTo(path, pushState = true) {
+  if (typeof window.closeMobileNav === 'function') {
+    window.closeMobileNav();
+  }
   const pageDef = SPA_PAGES[path];
   if (!pageDef) { location.href = path; return; }
   if (pushState) history.pushState(null, '', path);
