@@ -2619,16 +2619,16 @@ button:focus-visible, a:focus-visible { outline: 3px solid #87a857; outline-offs
   .mobile-nav-toggle { display: flex; border-radius: 10px; }
   .brand-text small { max-width: 280px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
-  /* Mobile Drawer Backdrop */
+  /* Mobile Drawer Backdrop - Crisp dimming overlay with zero blur */
   .mobile-nav-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(10, 25, 20, 0.65);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: rgba(0, 0, 0, 0.62);
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: opacity 0.25s ease;
     z-index: 9998;
   }
   .mobile-nav-backdrop.open {
@@ -2650,11 +2650,14 @@ button:focus-visible, a:focus-visible { outline: 3px solid #87a857; outline-offs
     background: linear-gradient(180deg, #153e32 0%, #0d2820 100%) !important;
     color: #ffffff !important;
     border: 0 !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
-    box-shadow: 14px 0 44px rgba(0, 0, 0, 0.45) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 14px 0 44px rgba(0, 0, 0, 0.5) !important;
     transform: translateX(-105%) !important;
     transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
-    z-index: 9999 !important;
+    z-index: 10000 !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     padding: 0 !important;
     flex-direction: column !important;
     justify-content: space-between !important;
