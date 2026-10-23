@@ -1032,6 +1032,14 @@ const LocalPOS = {
       const categories = await this.getShop('categories', [], btype);
       const items = await this.getShop('items', [], btype);
       let item = body.id ? items.find(i => i.id === Number(body.id)) : null;
+      if (window.OraforgeCatalogIntegrity?.assertUnique) {
+        window.OraforgeCatalogIntegrity.assertUnique(items, {
+          active: Number(body.active ?? item?.active ?? 1),
+          name: body.name || item?.name || 'Product',
+          sku: body.sku ?? item?.sku ?? '',
+          barcode: body.barcode ?? item?.barcode ?? ''
+        }, item?.id ?? null);
+      }
       if (!item) {
         item = { id: this.nextId(items), active: 1 };
         items.push(item);
@@ -1134,6 +1142,7 @@ async function api(path, options = {}) {
 
 
 async function bootstrap() {
+  if (window.OraforgeCatalogIntegrityReady) await window.OraforgeCatalogIntegrityReady;
   const data = await api('/api/bootstrap');
   state.user = data.user;
   state.settings = data.settings || {};
