@@ -215,6 +215,14 @@ const LocalAdmin = {
     if (cleanPath === '/api/menu/item' && method === 'POST') {
       const products = [...items];
       let item = body.id ? products.find(i => i.id === Number(body.id)) : null;
+      if (window.OraforgeCatalogIntegrity?.assertUnique) {
+        window.OraforgeCatalogIntegrity.assertUnique(products, {
+          active: Number(body.active ?? item?.active ?? 1),
+          name: body.name || item?.name || 'Product',
+          sku: body.sku ?? item?.sku ?? '',
+          barcode: body.barcode ?? item?.barcode ?? ''
+        }, item?.id ?? null);
+      }
       if (!item) { item = { id:this.nextId(products), active:1 }; products.push(item); }
       Object.assign(item, {
         category_id:Number(body.category_id || item.category_id || cats[0]?.id || 1),
@@ -1803,6 +1811,7 @@ async function ensureAdminLogin() {
 }
 
 async function boot() {
+  if (window.OraforgeCatalogIntegrityReady) await window.OraforgeCatalogIntegrityReady;
   await ensureAdminLogin();
   const data = await api('/api/bootstrap');
   if (!data) return;
