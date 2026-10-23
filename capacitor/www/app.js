@@ -259,9 +259,11 @@ function syncActiveTopNav(path = window.location.pathname) {
   const navRoot = qs('#topNav') || qs('header nav');
   if (!navRoot) return;
   const currentPath = (path || '/pos').replace(/\/+$/, '') || '/pos';
+  const isPos = currentPath === '/pos' || currentPath === '' || currentPath === '/index.html';
   qsa('.nav-link', navRoot).forEach(link => {
-    const linkPath = new URL(link.href, window.location.origin).pathname.replace(/\/+$/, '') || '/';
-    const active = linkPath === currentPath;
+    const rawHref = link.getAttribute('href') || '';
+    const linkPath = new URL(rawHref, window.location.origin).pathname.replace(/\/+$/, '') || '/';
+    const active = isPos ? (linkPath === '/pos' || linkPath === '/' || linkPath === '/index.html') : (linkPath === currentPath);
     link.classList.toggle('active', active);
     if (active) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
@@ -3912,7 +3914,12 @@ async function renderPage(pageDef) {
 
   // Update active nav link
   qsa('.nav-link').forEach(link => {
-    link.classList.toggle('active', link.textContent.trim() === pageDef.active);
+    const rawHref = link.getAttribute('href') || '';
+    const linkPath = new URL(rawHref, window.location.origin).pathname.replace(/\/+$/, '') || '/';
+    const active = linkPath === `/${pageDef.page}` || (pageDef.page === 'pos' && (linkPath === '/pos' || linkPath === '/' || linkPath === '/index.html'));
+    link.classList.toggle('active', active);
+    if (active) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
   });
 
   // Bootstrap data once (categories, items, user)

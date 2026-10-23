@@ -2750,7 +2750,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid #87a857; outline-offs
     display: flex !important;
     flex-direction: column !important;
     width: 100% !important;
-    gap: 6px !important;
+    gap: 9px !important;
     padding: 16px 14px !important;
     flex: 1 1 auto !important;
     overflow-y: auto !important;
@@ -2761,55 +2761,76 @@ button:focus-visible, a:focus-visible { outline: 3px solid #87a857; outline-offs
     display: flex !important;
     flex-direction: row !important;
     align-items: center !important;
-    justify-content: flex-start !important;
-    gap: 13px !important;
-    min-height: 48px !important;
-    padding: 10px 14px !important;
-    border-radius: 12px !important;
-    color: #c7ded0 !important;
-    font-size: 14px !important;
-    font-weight: 600 !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    min-height: 50px !important;
+    padding: 13px 18px !important;
+    border-radius: 14px !important;
+    color: #ffffff !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.2px !important;
     text-decoration: none !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    border: 1px solid transparent !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22) !important;
     transition: all 0.15s ease !important;
+    box-sizing: border-box !important;
+  }
+  /* Hide emoji icons/logos completely on mobile drawer */
+  .topbar-center .nav-link .nav-icon {
+    display: none !important;
+  }
+  .topbar-center .nav-link .nav-text {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.2px !important;
+    color: inherit !important;
+  }
+  /* Crisp chevron arrow indicator on right of button */
+  .topbar-center .nav-link::after {
+    content: '→';
+    font-size: 15px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.4);
+    margin-left: auto;
+    transition: all 0.15s ease;
   }
   .topbar-center .nav-link:hover,
   .topbar-center .nav-link:focus {
-    background: rgba(255, 255, 255, 0.06) !important;
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
     color: #ffffff !important;
+  }
+  .topbar-center .nav-link:hover::after,
+  .topbar-center .nav-link:focus::after {
+    color: #ffffff;
+    transform: translateX(3px);
   }
   .topbar-center .nav-link:active {
     transform: scale(0.98);
+    background: rgba(255, 255, 255, 0.22) !important;
   }
-  .topbar-center .nav-link .nav-icon {
-    display: grid !important;
-    place-items: center !important;
-    width: 32px !important;
-    height: 32px !important;
-    border-radius: 9px !important;
-    background: rgba(255, 255, 255, 0.08) !important;
-    font-size: 16px !important;
-    flex-shrink: 0 !important;
-    transition: background 0.15s ease;
-  }
-  .topbar-center .nav-link .nav-text {
-    font-size: 14px !important;
-    font-weight: 600 !important;
-    letter-spacing: -0.2px !important;
-  }
+  /* Active Button State: Crisp, vibrant lime card */
   .topbar-center .nav-link.active,
   [data-theme="dark"] .topbar-center .nav-link.active {
     background: var(--lime) !important;
-    color: #153e32 !important;
-    font-weight: 750 !important;
-    border-color: rgba(255, 255, 255, 0.2) !important;
-    box-shadow: 0 4px 14px rgba(215, 237, 155, 0.28) !important;
+    color: #123429 !important;
+    font-weight: 800 !important;
+    border: 1px solid var(--lime) !important;
+    box-shadow: 0 4px 16px rgba(215, 237, 155, 0.35) !important;
   }
-  .topbar-center .nav-link.active .nav-icon,
-  [data-theme="dark"] .topbar-center .nav-link.active .nav-icon {
-    background: rgba(21, 62, 50, 0.14) !important;
+  .topbar-center .nav-link.active .nav-text,
+  [data-theme="dark"] .topbar-center .nav-link.active .nav-text {
+    color: #123429 !important;
+    font-weight: 800 !important;
+  }
+  .topbar-center .nav-link.active::after,
+  [data-theme="dark"] .topbar-center .nav-link.active::after {
+    content: '✓';
+    color: #123429 !important;
+    font-size: 14px;
+    font-weight: 900;
   }
 
   /* Drawer Footer */
