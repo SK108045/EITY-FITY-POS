@@ -16,6 +16,8 @@
     if (/^pvc cup plugs 2"?$/.test(key)) key = 'pvc plug 2';
     if (/^pvc cup plugs 3"?$/.test(key)) key = 'pvc plug 3';
     if (/^pvc cup plugs 4"?$/.test(key)) key = 'pvc plug 4';
+    if (/^pvc plug 3"?$/.test(key)) key = 'pvc plug 3';
+    if (/^pvc plug 4"?$/.test(key)) key = 'pvc plug 4';
 
     if (key === 'pvc bends 2') key = 'pvc bends 2 x 90';
     if (key === 'tower bolt 4') key = 'tower bolt 4" - alluminium';
@@ -55,7 +57,7 @@
     const active = Number(candidate?.active ?? 1) === 1;
     if (!active) return;
 
-    const name = textKey(candidate?.name);
+    const name = productKey(candidate?.name);
     const sku = String(candidate?.sku || '').trim();
     const barcode = String(candidate?.barcode || '').trim();
 
@@ -63,7 +65,7 @@
       if (excludeId != null && Number(row.id) === Number(excludeId)) continue;
       if (Number(row.active ?? 1) !== 1) continue;
 
-      if (name && textKey(row.name) === name) {
+      if (name && productKey(row.name) === name) {
         throw new Error('Another active product already uses this product name.');
       }
       if (sku && String(row.sku || '').trim() === sku) {
