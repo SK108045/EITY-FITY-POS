@@ -189,20 +189,51 @@
     await sync();
     return (await ledger())[id];
   }
+  const missingJobPolls = new Map();
   async function sync() {
     const current=await ledger();
+    let hasPending=false;
     for(const record of Object.values(current)) {
       if(record.snapshot?.version!==2 || !record.helper_job_id || record.status==='generated')continue;
-      let job;try{job=await request('/jobs/'+record.helper_job_id);}catch{continue;}
+      if(['failed','missing'].includes(record.helper_state))continue;
+
+      let stillPending=true;
+      let job;
+      try {
+        job=await request('/jobs/'+record.helper_job_id);
+        missingJobPolls.delete(record.helper_job_id);
+      } catch(error) {
+        if(error.status===404) {
+          const misses=(missingJobPolls.get(record.helper_job_id) || 0)+1;
+          missingJobPolls.set(record.helper_job_id,misses);
+          if(misses>=3) {
+            stillPending=false;
+            await update(rows=>{
+              if(rows[record.id] && rows[record.id].status!=='generated') {
+                rows[record.id]={...rows[record.id],
+                  helper_state:'missing',
+                  helper_error:'eTIMS job was not found. Open the eTIMS workspace and use Recover this sale to retry.'};
+              }
+              return rows;
+            });
+          }
+        }
+        if(stillPending)hasPending=true;
+        continue;
+      }
+
       if(job.state==='complete') {
+        stillPending=false;
         await change(record.id,{type:'capture',source:'windows',fiscal:job.result.fiscal,
           attempt_id:record.attempt_id,digest:record.digest,total_cents:job.result.total_cents});
       }
+      if(stillPending)hasPending=true;
       if(record.helper_state===job.state && (record.helper_error || '')===(job.error || '') && job.state!=='complete')continue;
       await update(rows=>{rows[record.id]={...rows[record.id],helper_state:job.state,helper_error:job.error || '',
         local_issuance_status:job.result?.local_issuance_status || (job.state==='complete'?'issued':'pending'),
         kra_acceptance_status:job.result?.kra_acceptance_status || 'unverified'};return rows;});
     }
+    return hasPending;
   }
   async function afterPayment(order, settings) {
     if (!order.etims_requested) return;
@@ -428,14 +459,56 @@
   }
   window.addEventListener('oraforge-etims-changed', () => { refreshReceipt().catch(console.warn); });
   window.OraforgeEtims = {scope, identity, queue, get, attach, list, start, sync, manual, checkedAbsent, checkoutMarkup, beforePayment, enrich, afterPayment, bridge, mountReceipt, manage, request};
-  let syncing = false;
-  const refresh = async () => {
-    // Continue pending fiscal capture while the native eTIMS window has focus.
-    if (syncing) return;
-    syncing = true; try { await sync(); } catch (_) {} finally { syncing = false; }
+
+  // Poll only while a real eTIMS job is pending. The old permanent 1.5-second
+  // interval could generate ~57,600 Vercel requests per day from one open POS.
+  const POLL_DELAYS_MS=[2000,5000,10000,30000];
+  const MAX_AUTO_POLLS=30;
+  let syncing=false, pollTimer=null, pollAttempt=0;
+
+  function stopPolling() {
+    if(pollTimer)clearTimeout(pollTimer);
+    pollTimer=null;
+  }
+
+  function schedulePoll(delay) {
+    stopPolling();
+    if(document.visibilityState==='hidden')return;
+    pollTimer=setTimeout(()=>refresh(),delay);
+  }
+
+  const refresh=async ({resetBackoff=false}={}) => {
+    if(syncing || document.visibilityState==='hidden')return;
+    syncing=true;
+    let hasPending=false;
+    try {
+      hasPending=await sync();
+    } catch (_) {
+      hasPending=true;
+    } finally {
+      syncing=false;
+      if(!hasPending) {
+        pollAttempt=0;
+        stopPolling();
+        return;
+      }
+      if(resetBackoff)pollAttempt=0;
+      if(pollAttempt>=MAX_AUTO_POLLS) {
+        stopPolling();
+        console.warn('eTIMS auto-poll paused after repeated checks. Refocus the POS or recover the invoice from the eTIMS workspace.');
+        return;
+      }
+      const delay=POLL_DELAYS_MS[Math.min(pollAttempt,POLL_DELAYS_MS.length-1)];
+      pollAttempt+=1;
+      schedulePoll(delay);
+    }
   };
-  window.addEventListener('focus', () => refresh());
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refresh();});
-  setInterval(() => refresh(), 1500);
-  setTimeout(() => refresh(), 1000);
+
+  window.addEventListener('focus',()=>refresh({resetBackoff:true}));
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible')refresh({resetBackoff:true});
+    else stopPolling();
+  });
+  window.addEventListener('oraforge-etims-changed',()=>refresh({resetBackoff:true}));
+  setTimeout(()=>refresh({resetBackoff:true}),1000);
 })();
